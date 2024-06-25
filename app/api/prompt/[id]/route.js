@@ -1,5 +1,6 @@
 import Prompt from "@models/prompt";
 import { connectToDB } from "@utils/database";
+import { auth } from "@/auth";
 
 export const GET = async (req, { params }) => {
   try {
@@ -19,9 +20,14 @@ export const PATCH = async (req, { params }) => {
   const { prompt, tag } = await req.json();
 
   try {
+    const session = await auth();
     await connectToDB();
 
-    const existingPrompt = await Prompt.findById(params.id);
+    const existingPrompt = await Prompt.findById(params.id).populate("creator");
+
+    if (!session || session.user.id !== existingPrompt.creator._id.toString()) {
+      return new Response("User is not authenticated", { status: 401 });
+    }
 
     if (!prompt) return new Response("Prompt not found", { status: 404 });
 
@@ -38,7 +44,14 @@ export const PATCH = async (req, { params }) => {
 
 export const DELETE = async (req, { params }) => {
   try {
+    const session = await auth();
     await connectToDB();
+
+    const existingPrompt = await Prompt.findById(params.id).populate("creator");
+
+    if (!session || session.user.id !== existingPrompt.creator._id.toString()) {
+      return new Response("User is not authenticated", { status: 401 });
+    }
 
     await Prompt.findByIdAndDelete(params.id);
 
